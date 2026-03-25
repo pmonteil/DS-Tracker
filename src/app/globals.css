@@ -1,0 +1,233 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme inline {
+  --color-background: #020617;
+  --color-surface: #FFFFFF;
+  --color-foreground: #F1F5F9;
+  --color-muted: #94A3B8;
+  --color-subtle: #CBD5E1;
+  --color-border: #F0F0F0;
+  --color-accent: #0A0A0A;
+
+  --color-success-bg: #ECFDF5;
+  --color-success-text: #065F46;
+  --color-success-border: #A7F3D0;
+
+  --color-info-bg: #EFF6FF;
+  --color-info-text: #1E40AF;
+  --color-info-border: #BFDBFE;
+
+  --color-danger-bg: #FEF2F2;
+  --color-danger-text: #991B1B;
+  --color-danger-border: #FECACA;
+
+  --color-warning-bg: #FFFBEB;
+  --color-warning-text: #92400E;
+  --color-warning-border: #FDE68A;
+
+  --color-neutral-bg: #F3F4F6;
+  --color-neutral-text: #374151;
+  --color-neutral-border: #D1D5DB;
+
+  --font-sans: 'Inter', sans-serif;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+}
+
+::selection {
+  background: var(--color-accent);
+  color: white;
+}
+
+/* ── Ambient Aurora ── */
+
+.glow-container {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.glow-container::before {
+  content: '';
+  position: absolute;
+  inset: -50%;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 20%, rgba(99,130,255,0.26) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 80% at 80% 80%, rgba(255,130,100,0.072) 0%, transparent 50%),
+    radial-gradient(ellipse 70% 40% at 50% 60%, rgba(80,210,190,0.115) 0%, transparent 50%);
+  animation: aurora-drift 140s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  will-change: transform, opacity;
+}
+
+.glow-container::after {
+  content: '';
+  position: absolute;
+  inset: -50%;
+  background:
+    radial-gradient(ellipse 50% 70% at 70% 30%, rgba(120,140,255,0.2) 0%, transparent 50%),
+    radial-gradient(ellipse 90% 40% at 30% 70%, rgba(255,150,110,0.058) 0%, transparent 50%),
+    radial-gradient(ellipse 40% 90% at 60% 40%, rgba(100,220,200,0.09) 0%, transparent 50%);
+  animation: aurora-shift 165s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  will-change: transform, opacity;
+}
+
+.glow {
+  position: absolute;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.glow--blue {
+  inset: -30%;
+  background: radial-gradient(ellipse 40% 70% at 25% 25%, rgba(90,120,255,0.22) 0%, transparent 60%);
+  animation: nebula-a 155s cubic-bezier(0.42, 0, 0.58, 1) infinite;
+}
+
+.glow--orange {
+  inset: -30%;
+  background: radial-gradient(ellipse 70% 35% at 75% 75%, rgba(255,130,90,0.07) 0%, transparent 60%);
+  animation: nebula-orange 40s cubic-bezier(0.42, 0, 0.58, 1) infinite;
+}
+
+.glow--turquoise {
+  inset: -30%;
+  background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(80,210,190,0.11) 0%, transparent 60%);
+  animation: nebula-c 190s cubic-bezier(0.42, 0, 0.58, 1) infinite;
+}
+
+/* Opacité des couches : respiration plus douce (lueurs moins lumineuses) */
+@keyframes aurora-drift {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    opacity: 0.56;
+  }
+  20% {
+    transform: translate(14%, -10%) rotate(6deg) scale(1.04);
+    opacity: 0.64;
+  }
+  40% {
+    transform: translate(-8%, 18%) rotate(-4deg) scale(0.98);
+    opacity: 0.51;
+  }
+  60% {
+    transform: translate(-16%, -6%) rotate(10deg) scale(1.06);
+    opacity: 0.6;
+  }
+  80% {
+    transform: translate(10%, 12%) rotate(-7deg) scale(1.02);
+    opacity: 0.54;
+  }
+}
+
+@keyframes aurora-shift {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    opacity: 0.54;
+  }
+  25% {
+    transform: translate(-18%, 14%) rotate(-9deg) scale(1.05);
+    opacity: 0.62;
+  }
+  50% {
+    transform: translate(12%, -16%) rotate(5deg) scale(0.97);
+    opacity: 0.48;
+  }
+  75% {
+    transform: translate(8%, 8%) rotate(-5deg) scale(1.03);
+    opacity: 0.58;
+  }
+}
+
+@keyframes nebula-a {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    opacity: 0.54;
+  }
+  16% {
+    transform: translate(11%, 14%) rotate(8deg) scale(1.06);
+    opacity: 0.62;
+  }
+  33% {
+    transform: translate(-12%, 6%) rotate(-6deg) scale(0.99);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translate(-6%, -14%) rotate(11deg) scale(1.04);
+    opacity: 0.58;
+  }
+  66% {
+    transform: translate(16%, -8%) rotate(-4deg) scale(1.01);
+    opacity: 0.53;
+  }
+  83% {
+    transform: translate(-4%, 11%) rotate(5deg) scale(0.98);
+    opacity: 0.6;
+  }
+}
+
+@keyframes nebula-orange {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    opacity: 0.38;
+  }
+  20% {
+    transform: translate(-14%, -12%) rotate(-11deg) scale(1.05);
+    opacity: 0.48;
+  }
+  40% {
+    transform: translate(10%, 16%) rotate(7deg) scale(0.96);
+    opacity: 0.34;
+  }
+  60% {
+    transform: translate(14%, -10%) rotate(-8deg) scale(1.07);
+    opacity: 0.44;
+  }
+  80% {
+    transform: translate(-8%, 4%) rotate(4deg) scale(1);
+    opacity: 0.4;
+  }
+}
+
+@keyframes nebula-c {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    opacity: 0.51;
+  }
+  14% {
+    transform: translate(9%, -18%) rotate(5deg) scale(1.04);
+    opacity: 0.58;
+  }
+  28% {
+    transform: translate(-15%, 10%) rotate(-9deg) scale(0.97);
+    opacity: 0.48;
+  }
+  42% {
+    transform: translate(6%, 14%) rotate(7deg) scale(1.02);
+    opacity: 0.61;
+  }
+  57% {
+    transform: translate(12%, -6%) rotate(-5deg) scale(1.05);
+    opacity: 0.56;
+  }
+  71% {
+    transform: translate(-10%, -12%) rotate(9deg) scale(0.98);
+    opacity: 0.5;
+  }
+  85% {
+    transform: translate(-5%, 16%) rotate(-3deg) scale(1.03);
+    opacity: 0.54;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glow-container::before,
+  .glow-container::after,
+  .glow { animation: none; }
+}

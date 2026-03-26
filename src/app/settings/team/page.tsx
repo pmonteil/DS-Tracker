@@ -1,11 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Shield, User, Check, X, Ban, Undo2, Trash2 } from 'lucide-react';
+import { Shield, Check, X, Ban, Undo2, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { AdminGuard } from '@/components/layout/AdminGuard';
-import { AppHeader } from '@/components/layout/AppHeader';
 import { Loader } from '@/components/ui/Loader';
 
 interface TeamMember {
@@ -69,8 +68,8 @@ export default function TeamPage() {
     const isProcessing = actionLoading === member.id;
 
     return (
-      <div className="group/member flex items-center justify-between py-3 px-4 rounded-xl hover:bg-white/[0.02] transition-colors">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="group/member flex items-center gap-3 py-3 px-4 rounded-xl hover:bg-white/[0.02] transition-colors">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           <div className="w-8 h-8 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center shrink-0">
             {member.role === 'admin' ? (
               <Shield className="h-3.5 w-3.5 text-blue-400" strokeWidth={1.5} />
@@ -81,28 +80,32 @@ export default function TeamPage() {
             )}
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-slate-200 truncate">
-              {member.full_name || member.email.split('@')[0]}
-            </p>
+            <div className="flex items-center gap-2 min-w-0 flex-wrap">
+              <p className="text-sm font-medium text-slate-200 truncate">
+                {member.full_name || member.email.split('@')[0]}
+              </p>
+              <span
+                className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium shrink-0 ${
+                  member.role === 'admin'
+                    ? 'bg-blue-500/[0.12] text-blue-400'
+                    : 'bg-white/[0.06] text-slate-400'
+                }`}
+              >
+                {member.role === 'admin' ? 'Admin' : 'Dev'}
+              </span>
+            </div>
             <p className="text-xs text-slate-400 truncate">{member.email}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${
-            member.role === 'admin'
-              ? 'bg-blue-500/[0.12] text-blue-400'
-              : 'bg-white/[0.06] text-slate-400'
-          }`}>
-            {member.role === 'admin' ? 'Admin' : 'Dev'}
-          </span>
-          <span className="text-xs text-slate-400 hidden sm:inline">
+        <div className="flex items-center gap-3 shrink-0">
+          <span className="text-xs text-slate-400 hidden sm:inline whitespace-nowrap w-[12.5rem] text-left">
             {formatDistanceToNow(new Date(member.created_at), { addSuffix: true, locale: fr })}
           </span>
           {isProcessing ? (
-            <span className="text-xs text-slate-400">...</span>
+            <span className="text-xs text-slate-400 w-14 text-right">...</span>
           ) : (
-            <div className="flex items-center gap-1 opacity-0 group-hover/member:opacity-100 transition-opacity">
+            <div className="flex items-center justify-end gap-1 w-14 shrink-0 opacity-0 group-hover/member:opacity-100 transition-opacity">
               {actions}
             </div>
           )}
@@ -114,7 +117,6 @@ export default function TeamPage() {
   return (
     <AdminGuard>
       <div className="min-h-screen">
-        <AppHeader />
         <main className="max-w-3xl mx-auto px-6 py-8">
           <h1 className="text-lg font-medium text-slate-100 mb-1">Équipe</h1>
           <p className="text-sm text-slate-500 mb-8">

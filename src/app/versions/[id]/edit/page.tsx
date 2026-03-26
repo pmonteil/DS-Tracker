@@ -5,7 +5,6 @@ import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Trash2, Eye, X } from 'lucide-react';
 import Link from 'next/link';
 import { AdminGuard } from '@/components/layout/AdminGuard';
-import { AppHeader } from '@/components/layout/AppHeader';
 import { Loader } from '@/components/ui/Loader';
 import { DiffItemList } from '@/components/versions/DiffItemList';
 import { ImageUploadZone } from '@/components/versions/ImageUploadZone';
@@ -92,7 +91,6 @@ export default function EditVersionPage() {
     return (
       <AdminGuard>
         <div className="min-h-screen">
-          <AppHeader />
           <Loader message="Chargement..." />
         </div>
       </AdminGuard>
@@ -103,7 +101,6 @@ export default function EditVersionPage() {
     return (
       <AdminGuard>
         <div className="min-h-screen">
-          <AppHeader />
           <div className="max-w-3xl mx-auto px-6 py-8">
             <p className="text-sm text-slate-300">Version introuvable</p>
           </div>
@@ -117,7 +114,6 @@ export default function EditVersionPage() {
   return (
     <AdminGuard>
       <div className="min-h-screen">
-        <AppHeader />
         <main className="max-w-3xl mx-auto px-6 py-8">
           {/* Navigation */}
           <div className="flex items-center justify-between mb-6">

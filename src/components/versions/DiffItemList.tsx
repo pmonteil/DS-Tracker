@@ -16,6 +16,8 @@ interface DiffItemListProps {
   readOnly?: boolean;
   variableScreenshots?: string[];
   customBlocks?: { title: string; text: string; images: string[] }[];
+  completedItemIds?: Set<string>;
+  onToggleIntegration?: (itemId: string, completed: boolean) => void;
 }
 
 function isSubComponent(item: DiffItem): boolean {
@@ -121,6 +123,53 @@ function buildGroups(items: DiffItem[]): ListEntry[] {
   return result;
 }
 
+function IntegrationCheck({
+  itemId,
+  completed,
+  onToggle,
+}: {
+  itemId: string;
+  completed: boolean;
+  onToggle: (id: string, val: boolean) => void;
+}) {
+  const [animating, setAnimating] = useState(false);
+
+  const toggle = () => {
+    const next = !completed;
+    onToggle(itemId, next);
+    if (next) {
+      setAnimating(true);
+      setTimeout(() => setAnimating(false), 600);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 relative shrink-0 cursor-pointer ${
+        completed
+          ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30'
+          : 'bg-white/60 text-gray-300 hover:bg-emerald-50 hover:text-emerald-400 ring-1 ring-black/5'
+      }`}
+      title={completed ? 'Marquer comme non fait' : 'Marquer comme intégré'}
+    >
+      {completed ? (
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      ) : (
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <circle cx="12" cy="12" r="8" />
+        </svg>
+      )}
+      {animating && (
+        <span className="absolute inset-0 rounded-full bg-emerald-400/30 animate-ping" />
+      )}
+    </button>
+  );
+}
+
 export function DiffItemList({
   items,
   versionId,
@@ -129,6 +178,8 @@ export function DiffItemList({
   readOnly = false,
   variableScreenshots,
   customBlocks,
+  completedItemIds,
+  onToggleIntegration,
 }: DiffItemListProps) {
   const visible = items.filter((d) => !d.excluded);
   const [overrides, setOverrides] = useState<Record<string, string>>({});
@@ -298,6 +349,8 @@ export function DiffItemList({
     );
   }
 
+  const showIntegration = readOnly && !!onToggleIntegration && !!completedItemIds;
+
   function ExcludeButton({ itemId, small }: { itemId: string; small?: boolean }) {
     if (readOnly) return null;
     return (
@@ -365,14 +418,26 @@ export function DiffItemList({
                 if (isGrouped(entry)) {
                   const { parent, children } = entry;
                   const pk = parent.id || `${cat.key}-g-${i}`;
+                  const parentDone = showIntegration && parent.id && completedItemIds.has(parent.id);
 
                   return (
                     <div
                       key={pk}
-                      className="group/card relative bg-white rounded-2xl border border-black/5 p-5 shadow-sm hover:shadow-md transition-all"
+                      className={`group/card relative bg-white rounded-2xl border border-black/5 p-5 shadow-sm hover:shadow-md transition-all duration-500 ${
+                        parentDone ? 'opacity-40' : ''
+                      }`}
                     >
-                      <div className={readOnly ? '' : 'pr-6'}>
-                        <ItemContent item={parent} />
+                      <div className={`flex items-start gap-3 ${readOnly ? '' : 'pr-6'}`}>
+                        <div className="flex-1 min-w-0">
+                          <ItemContent item={parent} />
+                        </div>
+                        {showIntegration && parent.id && (
+                          <IntegrationCheck
+                            itemId={parent.id}
+                            completed={completedItemIds.has(parent.id)}
+                            onToggle={onToggleIntegration}
+                          />
+                        )}
                       </div>
 
                       {parent.id && <ExcludeButton itemId={parent.id} />}
@@ -404,14 +469,26 @@ export function DiffItemList({
 
                 const item = entry as DiffItem;
                 const k = item.id || `${cat.key}-${i}`;
+                const itemDone = showIntegration && item.id && completedItemIds.has(item.id);
 
                 return (
                   <div
                     key={k}
-                    className="group/card relative bg-white rounded-2xl border border-black/5 p-5 shadow-sm hover:shadow-md transition-all"
+                    className={`group/card relative bg-white rounded-2xl border border-black/5 p-5 shadow-sm hover:shadow-md transition-all duration-500 ${
+                      itemDone ? 'opacity-40' : ''
+                    }`}
                   >
-                    <div className={readOnly ? '' : 'pr-6'}>
-                      <ItemContent item={item} />
+                    <div className={`flex items-start gap-3 ${readOnly ? '' : 'pr-6'}`}>
+                      <div className="flex-1 min-w-0">
+                        <ItemContent item={item} />
+                      </div>
+                      {showIntegration && item.id && (
+                        <IntegrationCheck
+                          itemId={item.id}
+                          completed={completedItemIds.has(item.id)}
+                          onToggle={onToggleIntegration}
+                        />
+                      )}
                     </div>
                     {item.id && <ExcludeButton itemId={item.id} />}
                   </div>

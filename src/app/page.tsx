@@ -6,7 +6,6 @@ import { AdminGuard } from '@/components/layout/AdminGuard';
 import { BranchList } from '@/components/branches/BranchList';
 import { Loader } from '@/components/ui/Loader';
 import type { FigmaBranch } from '@/lib/types';
-import { AppHeader } from '@/components/layout/AppHeader';
 
 const PROGRESS_MESSAGES = [
   'Récupération des données Figma...',
@@ -60,7 +59,6 @@ export default function AdminHome() {
   return (
     <AdminGuard>
       <div className="min-h-screen">
-        <AppHeader />
         <main className="max-w-3xl mx-auto px-6 py-8">
           <h1 className="text-lg font-medium text-slate-100 mb-1">Nouveau changelog</h1>
           <p className="text-sm text-slate-300 mb-8">

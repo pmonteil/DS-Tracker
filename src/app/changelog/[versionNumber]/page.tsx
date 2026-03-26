@@ -1,15 +1,16 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { ExternalLink, AlertTriangle, Pencil } from 'lucide-react';
-import { AppHeader } from '@/components/layout/AppHeader';
 import { Badge } from '@/components/ui/Badge';
 import { Loader } from '@/components/ui/Loader';
 import { DiffItemList } from '@/components/versions/DiffItemList';
 import { VersionSidebar } from '@/components/changelog/VersionSidebar';
+import { IntegrationBar } from '@/components/changelog/IntegrationBar';
+import { CompletedAvatars } from '@/components/changelog/CompletedAvatars';
 import { createClient } from '@/lib/supabase/client';
 import type { Version, DiffItem } from '@/lib/types';
 
@@ -28,6 +29,7 @@ function cleanVersionTitle(version: Version): string {
 export default function VersionDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
   const versionNumber = decodeURIComponent(params.versionNumber as string);
 
   const [version, setVersion] = useState<Version | null>(null);
@@ -35,14 +37,17 @@ export default function VersionDetailPage() {
   const [allVersions, setAllVersions] = useState<Version[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [completedItemIds, setCompletedItemIds] = useState<Set<string>>(new Set());
+  const [integrationCompleted, setIntegrationCompleted] = useState(false);
 
   useEffect(() => {
-    const checkAdmin = async () => {
-      const supabase = createClient();
+    const checkAuth = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
+        setCurrentUserId(user.id);
         const { data: profile } = await supabase
           .from('profiles')
           .select('role')
@@ -51,8 +56,8 @@ export default function VersionDetailPage() {
         setIsAdmin(profile?.role === 'admin');
       }
     };
-    checkAdmin();
-  }, []);
+    checkAuth();
+  }, [supabase]);
 
   const fetchData = useCallback(async () => {
     const versionsRes = await fetch('/api/versions?public=true');
@@ -75,13 +80,94 @@ export default function VersionDetailPage() {
     fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    if (!currentUserId || !version) return;
+    supabase.from('version_reads').upsert(
+      { user_id: currentUserId, version_id: version.id },
+      { onConflict: 'user_id,version_id' },
+    );
+  }, [currentUserId, version, supabase]);
+
+  useEffect(() => {
+    if (!currentUserId || !version) return;
+
+    supabase
+      .from('integration_progress')
+      .select('diff_item_id')
+      .eq('user_id', currentUserId)
+      .eq('version_id', version.id)
+      .eq('completed', true)
+      .then(({ data }) => {
+        if (data) setCompletedItemIds(new Set(data.map((d) => d.diff_item_id)));
+      });
+
+    supabase
+      .from('integration_completions')
+      .select('status')
+      .eq('user_id', currentUserId)
+      .eq('version_id', version.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.status === 'completed') setIntegrationCompleted(true);
+      });
+  }, [currentUserId, version, supabase]);
+
+  const handleToggleIntegration = useCallback(
+    async (itemId: string, completed: boolean) => {
+      if (!currentUserId || !version) return;
+
+      setCompletedItemIds((prev) => {
+        const next = new Set(prev);
+        if (completed) next.add(itemId);
+        else next.delete(itemId);
+        return next;
+      });
+
+      await supabase.from('integration_progress').upsert(
+        {
+          user_id: currentUserId,
+          version_id: version.id,
+          diff_item_id: itemId,
+          completed,
+          completed_at: completed ? new Date().toISOString() : null,
+        },
+        { onConflict: 'user_id,diff_item_id' },
+      );
+    },
+    [currentUserId, version, supabase],
+  );
+
+  const handleComplete = async () => {
+    if (!currentUserId || !version) return;
+    await supabase.from('integration_completions').upsert(
+      {
+        user_id: currentUserId,
+        version_id: version.id,
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,version_id' },
+    );
+    setIntegrationCompleted(true);
+  };
+
+  const handleReopen = async () => {
+    if (!currentUserId || !version) return;
+    await supabase
+      .from('integration_completions')
+      .update({ status: 'in_progress', completed_at: null })
+      .eq('user_id', currentUserId)
+      .eq('version_id', version.id);
+    setIntegrationCompleted(false);
+  };
+
   const hasBreaking = diffItems.some((item) => item.is_breaking && !item.excluded);
   const visibleItems = diffItems.filter((d) => !d.excluded);
+  const trackableItems = visibleItems.filter((d) => d.id);
 
   if (loading) {
     return (
       <div className="min-h-screen">
-        <AppHeader />
         <Loader message="Chargement..." />
       </div>
     );
@@ -90,7 +176,6 @@ export default function VersionDetailPage() {
   if (!version) {
     return (
       <div className="min-h-screen">
-        <AppHeader />
         <div className="max-w-3xl mx-auto px-6 py-8">
           <p className="text-sm text-slate-300">Version introuvable</p>
         </div>
@@ -99,8 +184,7 @@ export default function VersionDetailPage() {
   }
 
   return (
-    <div className="min-h-screen">
-      <AppHeader />
+    <div className="min-h-screen flex flex-col">
       <main className="flex-1">
         <div className="max-w-5xl mx-auto px-6 py-8 flex gap-8">
           <div className="flex-1 min-w-0">
@@ -110,7 +194,7 @@ export default function VersionDetailPage() {
               </h1>
             </div>
 
-            <div className="flex items-center gap-3 mb-6">
+            <div className="flex items-center gap-3 mb-6 flex-wrap">
               {version.published_at && (
                 <span className="text-sm text-slate-300">
                   Publié le{' '}
@@ -129,16 +213,15 @@ export default function VersionDetailPage() {
                 Voir dans Figma
                 <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.5} />
               </a>
+              <CompletedAvatars versionId={version.id} />
             </div>
 
-            {/* Résumé */}
             {version.summary && (
               <div className="bg-white/[0.05] border border-white/[0.1] rounded-xl p-5 mb-8 text-sm text-slate-200 leading-relaxed">
                 {version.summary}
               </div>
             )}
 
-            {/* Breaking changes callout */}
             {hasBreaking && (
               <div className="flex gap-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-4 mb-8">
                 <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" strokeWidth={1.5} />
@@ -152,22 +235,21 @@ export default function VersionDetailPage() {
               </div>
             )}
 
-            {/* Compteur */}
             <div className="mb-4">
               <span className="text-sm font-medium text-slate-500">
                 {visibleItems.length} changement{visibleItems.length !== 1 ? 's' : ''}
               </span>
             </div>
 
-            {/* Diff items en mode lecture seule - identique à l'éditeur */}
             <DiffItemList
               items={diffItems}
               readOnly
               variableScreenshots={version.variable_screenshots}
               customBlocks={version.custom_blocks}
+              completedItemIds={currentUserId ? completedItemIds : undefined}
+              onToggleIntegration={currentUserId ? handleToggleIntegration : undefined}
             />
 
-            {/* Bouton Modifier pour admin */}
             {isAdmin && (
               <div className="mt-8 flex justify-center">
                 <button
@@ -188,6 +270,16 @@ export default function VersionDetailPage() {
           />
         </div>
       </main>
+
+      {currentUserId && (
+        <IntegrationBar
+          totalItems={trackableItems.length}
+          completedItems={completedItemIds.size}
+          onComplete={handleComplete}
+          isCompleted={integrationCompleted}
+          onReopen={handleReopen}
+        />
+      )}
     </div>
   );
 }

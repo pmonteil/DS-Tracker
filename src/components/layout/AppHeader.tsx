@@ -13,12 +13,19 @@ export function AppHeader() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [navRole, setNavRole] = useState<NavRole>('loading');
+  const [userId, setUserId] = useState<string | null>(null);
   const [initials, setInitials] = useState('');
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [headerReady, setHeaderReady] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const avatarRef = useRef<HTMLDivElement>(null);
 
+  const hiddenPaths = ['/login', '/auth'];
+  const isHidden = hiddenPaths.some((p) => pathname === p || pathname.startsWith(p + '/'));
+
   useEffect(() => {
+    if (isHidden) return;
     let cancelled = false;
     (async () => {
       const {
@@ -27,8 +34,10 @@ export function AppHeader() {
       if (cancelled) return;
       if (!user) {
         setNavRole('guest');
+        setUserId(null);
         return;
       }
+      setUserId(user.id);
       const email = user.email ?? '';
       const parts = email.split('@')[0].split(/[._-]/);
       const ini =
@@ -44,11 +53,16 @@ export function AppHeader() {
         .maybeSingle();
       if (cancelled) return;
       setNavRole(profile?.role === 'admin' ? 'admin' : 'developer');
+
+      const { data: count } = await supabase.rpc('get_unread_versions_count', {
+        p_user_id: user.id,
+      });
+      if (!cancelled) setUnreadCount(count ?? 0);
     })();
     return () => {
       cancelled = true;
     };
-  }, [supabase]);
+  }, [supabase, isHidden]);
 
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
@@ -61,11 +75,16 @@ export function AppHeader() {
   }, []);
 
   useEffect(() => {
+    setHeaderReady(true);
     const onScroll = () => setScrolled(window.scrollY > 10);
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, [pathname]);
+
+  if (isHidden) return null;
+
+  const showScrollStyle = headerReady && scrolled;
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -76,7 +95,7 @@ export function AppHeader() {
   const isLoggedIn = navRole === 'admin' || navRole === 'developer';
 
   const tabClass = (active: boolean) =>
-    `px-3 py-1.5 rounded-lg text-sm transition-colors min-w-[auto] ${
+    `relative px-3 py-1.5 rounded-lg text-sm transition-colors min-w-[auto] ${
       active
         ? 'text-slate-100 bg-white/[0.08]'
         : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
@@ -85,7 +104,7 @@ export function AppHeader() {
   return (
     <header
       className={`sticky top-0 z-10 border-b transition-[background-color,backdrop-filter,border-color] duration-300 ease-out ${
-        scrolled
+        showScrollStyle
           ? 'bg-slate-950/80 backdrop-blur-xl backdrop-saturate-150 border-white/[0.08]'
           : 'bg-transparent border-white/[0.06]'
       }`}
@@ -104,6 +123,12 @@ export function AppHeader() {
               className={tabClass(pathname.startsWith('/changelog'))}
             >
               Changelog
+              {isLoggedIn && unreadCount > 0 && (
+                <span
+                  className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-orange-400 animate-pulse"
+                  style={{ boxShadow: '0 0 8px rgba(251,146,60,0.6)' }}
+                />
+              )}
             </Link>
             {isAdmin && (
               <Link

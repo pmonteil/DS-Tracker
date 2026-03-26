@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Search, Trash2 } from 'lucide-react';
-import { AppHeader } from '@/components/layout/AppHeader';
 import { Loader } from '@/components/ui/Loader';
+import { CompletedAvatars } from '@/components/changelog/CompletedAvatars';
 import type { Version, DiffItem } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 
@@ -35,6 +35,8 @@ export default function ChangelogPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Version | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [readVersionIds, setReadVersionIds] = useState<Set<string>>(new Set());
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -45,12 +47,19 @@ export default function ChangelogPage() {
 
       let admin = false;
       if (user) {
+        setCurrentUserId(user.id);
         const { data: profile } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', user.id)
           .maybeSingle();
         admin = profile?.role === 'admin';
+
+        const { data: reads } = await supabase
+          .from('version_reads')
+          .select('version_id')
+          .eq('user_id', user.id);
+        if (reads) setReadVersionIds(new Set(reads.map((r) => r.version_id)));
       }
       setIsAdmin(admin);
 
@@ -96,7 +105,6 @@ export default function ChangelogPage() {
 
   return (
     <div className="min-h-screen">
-      <AppHeader />
       <main className="max-w-3xl mx-auto px-6 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -136,6 +144,8 @@ export default function ChangelogPage() {
                 ? `/versions/${version.id}/edit`
                 : `/changelog/${version.version_number}`;
 
+              const isUnread = !isDraft && currentUserId && !readVersionIds.has(version.id);
+
               return (
                 <div key={version.id} className="group/row flex items-center gap-0 rounded-xl hover:bg-white/[0.03] transition-colors">
                   <Link href={href} className="flex-1 min-w-0">
@@ -147,13 +157,22 @@ export default function ChangelogPage() {
                             <span className="relative block w-2.5 h-2.5 rounded-full bg-blue-400" />
                           </>
                         )}
-                        {!isDraft && isLatest && (
+                        {!isDraft && isUnread && (
+                          <>
+                            <span
+                              className="absolute inset-0 rounded-full bg-orange-400 animate-pulse opacity-50"
+                              style={{ boxShadow: '0 0 6px rgba(251,146,60,0.5)' }}
+                            />
+                            <span className="relative block w-2.5 h-2.5 rounded-full bg-orange-400" />
+                          </>
+                        )}
+                        {!isDraft && !isUnread && isLatest && (
                           <>
                             <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-40" />
                             <span className="relative block w-2.5 h-2.5 rounded-full bg-emerald-400" />
                           </>
                         )}
-                        {!isDraft && !isLatest && (
+                        {!isDraft && !isUnread && !isLatest && (
                           <span className="block w-2.5 h-2.5 rounded-full bg-slate-600" />
                         )}
                       </div>
@@ -169,6 +188,12 @@ export default function ChangelogPage() {
                           <span className="text-amber-500 text-xs shrink-0">⚠️</span>
                         )}
                       </div>
+
+                      {!isDraft && (
+                        <div className="shrink-0 hidden sm:block">
+                          <CompletedAvatars versionId={version.id} />
+                        </div>
+                      )}
 
                       <span className="text-xs text-slate-400 shrink-0">
                         {formatDistanceToNow(new Date(version.published_at || version.created_at), {

@@ -117,7 +117,7 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-6">
-          <div className="flex mb-6 bg-white/[0.04] rounded-lg p-0.5">
+          <div className="relative z-10 flex mb-6 bg-white/[0.04] rounded-lg p-0.5">
             <button
               type="button"
               onClick={() => { setMode('login'); setError(''); setSuccess(''); }}
@@ -142,24 +142,82 @@ export default function LoginPage() {
             </button>
           </div>
 
-          <div className="min-h-[340px]">
+          {mode === 'login' ? (
             <form
-              onSubmit={mode === 'login' ? handleLogin : handleSignup}
+              key="login"
+              onSubmit={handleLogin}
               className="flex flex-col gap-4"
             >
-              {mode === 'signup' && (
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Prénom</label>
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">Email</label>
+                <input
+                  type="email"
+                  placeholder="votre@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">Mot de passe</label>
+                <div className="relative">
                   <input
-                    type="text"
-                    placeholder="Jean"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     required
-                    className={inputClass}
+                    minLength={6}
+                    className={`${inputClass} pr-10`}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" strokeWidth={1.5} />
+                    ) : (
+                      <Eye className="h-4 w-4" strokeWidth={1.5} />
+                    )}
+                  </button>
                 </div>
+              </div>
+
+              {error && (
+                <p className="text-sm text-red-400 bg-red-500/[0.08] border border-red-500/[0.15] rounded-xl px-3 py-2">
+                  {error}
+                </p>
               )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full mt-1 py-2.5 bg-white text-slate-900 rounded-xl text-sm font-medium hover:bg-slate-100 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {loading ? '...' : 'Se connecter'}
+              </button>
+            </form>
+          ) : (
+            <form
+              key="signup"
+              onSubmit={handleSignup}
+              className="flex flex-col gap-4"
+            >
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">Prénom</label>
+                <input
+                  type="text"
+                  placeholder="Jean"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                  className={inputClass}
+                />
+              </div>
 
               <div>
                 <label className="block text-xs font-medium text-slate-300 mb-1.5">Email</label>
@@ -200,12 +258,10 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {mode === 'signup' && (
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Équipe</label>
-                  <TeamSelect value={team} onChange={setTeam} />
-                </div>
-              )}
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">Équipe</label>
+                <TeamSelect value={team} onChange={setTeam} />
+              </div>
 
               {error && (
                 <p className="text-sm text-red-400 bg-red-500/[0.08] border border-red-500/[0.15] rounded-xl px-3 py-2">
@@ -224,14 +280,10 @@ export default function LoginPage() {
                 disabled={loading}
                 className="w-full mt-1 py-2.5 bg-white text-slate-900 rounded-xl text-sm font-medium hover:bg-slate-100 transition-colors cursor-pointer disabled:opacity-50"
               >
-                {loading
-                  ? '...'
-                  : mode === 'login'
-                    ? 'Se connecter'
-                    : 'Envoyer ma demande'}
+                {loading ? '...' : 'Envoyer ma demande'}
               </button>
             </form>
-          </div>
+          )}
         </div>
       </div>
     </div>

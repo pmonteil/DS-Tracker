@@ -54,15 +54,24 @@ export function AppHeader() {
       if (cancelled) return;
       setNavRole(profile?.role === 'admin' ? 'admin' : 'developer');
 
-      const { data: count } = await supabase.rpc('get_unread_versions_count', {
-        p_user_id: user.id,
-      });
-      if (!cancelled) setUnreadCount(count ?? 0);
+      if (profile?.role !== 'admin') {
+        const { data: published } = await supabase.from('versions').select('id').eq('status', 'published');
+        const { data: done } = await supabase
+          .from('integration_completions')
+          .select('version_id')
+          .eq('user_id', user.id)
+          .eq('status', 'completed');
+        const doneIds = new Set((done ?? []).map((r) => r.version_id));
+        const needsAttention = (published ?? []).filter((v) => !doneIds.has(v.id)).length;
+        if (!cancelled) setUnreadCount(needsAttention);
+      } else {
+        if (!cancelled) setUnreadCount(0);
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [supabase, isHidden]);
+  }, [supabase, isHidden, pathname]);
 
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
@@ -122,13 +131,16 @@ export function AppHeader() {
               href="/changelog"
               className={tabClass(pathname.startsWith('/changelog'))}
             >
-              Changelog
-              {isLoggedIn && unreadCount > 0 && (
-                <span
-                  className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-orange-400 animate-pulse"
-                  style={{ boxShadow: '0 0 8px rgba(251,146,60,0.6)' }}
-                />
-              )}
+              <span className="inline-flex items-center gap-1.5">
+                <span>Changelog</span>
+                {!isAdmin && unreadCount > 0 && (
+                  <span
+                    className="shrink-0 w-2 h-2 rounded-full bg-orange-400 animate-pulse"
+                    style={{ boxShadow: '0 0 8px rgba(251,146,60,0.6)' }}
+                    aria-hidden
+                  />
+                )}
+              </span>
             </Link>
             {isAdmin && (
               <Link

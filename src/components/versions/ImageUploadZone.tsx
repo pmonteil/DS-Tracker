@@ -13,14 +13,17 @@ interface ImageUploadZoneProps {
 export function ImageUploadZone({ images, onChange, label, compact }: ImageUploadZoneProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
 
   const handleUpload = useCallback(
-    async (files: FileList | null) => {
-      if (!files || files.length === 0) return;
+    async (files: FileList | File[] | null) => {
+      if (!files || (files instanceof FileList && files.length === 0) || (Array.isArray(files) && files.length === 0)) return;
       setUploading(true);
 
       const newUrls: string[] = [];
-      for (const file of Array.from(files)) {
+      const fileArray = files instanceof FileList ? Array.from(files) : files;
+      for (const file of fileArray) {
+        if (!file.type.startsWith('image/')) continue;
         const form = new FormData();
         form.append('file', file);
         try {
@@ -38,12 +41,36 @@ export function ImageUploadZone({ images, onChange, label, compact }: ImageUploa
     [images, onChange]
   );
 
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragging(false);
+    const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith('image/'));
+    if (files.length > 0) handleUpload(files);
+  }, [handleUpload]);
+
   const removeImage = (idx: number) => {
     onChange(images.filter((_, i) => i !== idx));
   };
 
   return (
-    <div>
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       {label && (
         <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
           {label}
@@ -80,10 +107,16 @@ export function ImageUploadZone({ images, onChange, label, compact }: ImageUploa
         type="button"
         onClick={() => fileRef.current?.click()}
         disabled={uploading}
-        className="w-full py-3 border border-dashed border-white/[0.14] rounded-xl text-sm text-slate-300 hover:text-white hover:border-white/[0.25] transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+        className={`w-full py-3 border border-dashed rounded-xl text-sm transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 ${
+          dragging
+            ? 'border-blue-400 bg-blue-500/10 text-blue-300'
+            : 'border-white/[0.14] text-slate-300 hover:text-white hover:border-white/[0.25]'
+        }`}
       >
         {uploading ? (
           'Upload en cours...'
+        ) : dragging ? (
+          'Déposer ici'
         ) : (
           <>
             {images.length === 0 ? <ImageIcon className="w-4 h-4" /> : <Plus className="w-4 h-4" />}

@@ -194,7 +194,9 @@ function diffComponentSets(
       renamedProps.length > 0 ||
       !propsStructurallyEqual;
 
-    if (!structuralChange) {
+    const visualChange = branchSet.childrenHash !== mainSet.childrenHash;
+
+    if (!structuralChange && !visualChange) {
       continue;
     }
 
@@ -221,6 +223,7 @@ function diffComponentSets(
         removedProps: removedFinal.map((p) => p.name),
         addedPropsDetailed: addedFinal,
         removedPropsDetailed: removedFinal,
+        visualOnly: !structuralChange && visualChange,
       },
       is_breaking:
         removedVariants.length > 0 ||
@@ -229,7 +232,9 @@ function diffComponentSets(
       is_internal: branchSet.isInternal,
       parent_component: null,
       family_page: branchSet.pageName,
-      description: null,
+      description: !structuralChange && visualChange
+        ? 'Modification visuelle (couleurs, opacité, effets ou styles) sans changement de structure'
+        : null,
       screenshot_before: null,
       screenshot_after: null,
       sort_order: 0,
@@ -307,7 +312,10 @@ function diffStandaloneComponents(
       changes.push(`Renommé de "${mc.name}" → "${bc.name}"`);
     }
 
-    /* Position / taille du cadre sur le canvas ignorés (faux positifs) — V1.3 */
+    const visualChange = bc.childrenHash !== mc.childrenHash;
+    if (visualChange) {
+      changes.push('Modification visuelle (couleurs, opacité, effets ou styles)');
+    }
 
     if (changes.length > 0) {
       items.push({
@@ -316,7 +324,7 @@ function diffStandaloneComponents(
         item_name: bc.name,
         item_id: bc.id,
         old_value: { name: mc.name, width: mc.width, height: mc.height },
-        new_value: { name: bc.name, width: bc.width, height: bc.height },
+        new_value: { name: bc.name, width: bc.width, height: bc.height, visualOnly: visualChange && mc.name === bc.name },
         is_breaking: false,
         is_internal: bc.isInternal,
         parent_component: null,

@@ -7,7 +7,6 @@ import Link from 'next/link';
 import { AdminGuard } from '@/components/layout/AdminGuard';
 import { Loader } from '@/components/ui/Loader';
 import { DiffItemList } from '@/components/versions/DiffItemList';
-import { ImageUploadZone } from '@/components/versions/ImageUploadZone';
 import { CustomBlockEditor, type CustomBlock } from '@/components/versions/CustomBlockEditor';
 import type { Version, DiffItem } from '@/lib/types';
 
@@ -28,6 +27,7 @@ export default function EditVersionPage() {
   const [patchnoteMd, setPatchnoteMd] = useState('');
   const [summary, setSummary] = useState('');
   const [variableScreenshots, setVariableScreenshots] = useState<string[]>([]);
+  const [variableBlocks, setVariableBlocks] = useState<CustomBlock[]>([]);
   const [customBlocks, setCustomBlocks] = useState<CustomBlock[]>([]);
 
   const fetchVersion = useCallback(async () => {
@@ -40,6 +40,7 @@ export default function EditVersionPage() {
       setPatchnoteMd(data.version.patchnote_md || '');
       setSummary(data.version.summary || '');
       setVariableScreenshots(data.version.variable_screenshots || []);
+      setVariableBlocks(data.version.variable_blocks || []);
       setCustomBlocks(data.version.custom_blocks || []);
     }
     setDiffItems(data.diffItems ?? []);
@@ -56,6 +57,7 @@ export default function EditVersionPage() {
     patchnote_md: patchnoteMd,
     summary: summary || null,
     variable_screenshots: variableScreenshots,
+    variable_blocks: variableBlocks,
     custom_blocks: customBlocks,
   });
 
@@ -109,7 +111,8 @@ export default function EditVersionPage() {
     );
   }
 
-  const visibleCount = diffItems.filter((d) => !d.excluded).length;
+  const excludedCount = diffItems.filter((d) => d.excluded).length;
+  const visibleCount = diffItems.length - excludedCount;
 
   return (
     <AdminGuard>
@@ -190,19 +193,24 @@ export default function EditVersionPage() {
               <div className="flex-1 h-px bg-white/[0.04]" />
             </div>
             <div className="pl-4">
-              <ImageUploadZone
-                images={variableScreenshots}
-                onChange={setVariableScreenshots}
-                label="Captures des changements de variables"
+              <CustomBlockEditor
+                blocks={variableBlocks}
+                onChange={setVariableBlocks}
+                addLabel="Ajouter un bloc dans les variables"
               />
             </div>
           </div>
 
           {/* Compteur diff items */}
-          <div className="mb-4">
+          <div className="mb-4 flex items-center gap-3">
             <span className="text-sm font-medium text-slate-300">
               {visibleCount} changement{visibleCount !== 1 ? 's' : ''} détecté{visibleCount !== 1 ? 's' : ''}
             </span>
+            {excludedCount > 0 && (
+              <span className="text-xs text-slate-500">
+                · {excludedCount} exclu{excludedCount !== 1 ? 's' : ''}
+              </span>
+            )}
           </div>
 
           <DiffItemList
@@ -303,6 +311,7 @@ export default function EditVersionPage() {
                 items={diffItems}
                 readOnly
                 variableScreenshots={variableScreenshots.length > 0 ? variableScreenshots : undefined}
+                variableBlocks={variableBlocks.some((b) => b.title || b.text || b.images.length > 0) ? variableBlocks : undefined}
                 customBlocks={customBlocks.some((b) => b.title || b.text || b.images.length > 0) ? customBlocks : undefined}
               />
             </div>

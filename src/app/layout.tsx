@@ -23,11 +23,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col font-sans bg-slate-950" suppressHydrationWarning>
+      <body className="h-full flex flex-col font-sans bg-slate-950 overflow-hidden" suppressHydrationWarning>
         <FloatingGlows />
-        <div className="relative z-[1] flex flex-col min-h-full">
+        <div className="relative z-[1] flex flex-col h-full">
           <AppHeader />
-          {children}
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            {children}
+          </div>
         </div>
       </body>
     </html>

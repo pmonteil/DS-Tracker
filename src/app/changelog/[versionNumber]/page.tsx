@@ -4,14 +4,17 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { ExternalLink, AlertTriangle, Pencil } from 'lucide-react';
+import { ExternalLink, AlertTriangle, Pencil, Download } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Loader } from '@/components/ui/Loader';
 import { DiffItemList } from '@/components/versions/DiffItemList';
+import { countIntegratableDiffItems } from '@/lib/integration-trackable';
 import { VersionSidebar } from '@/components/changelog/VersionSidebar';
 import { IntegrationBar } from '@/components/changelog/IntegrationBar';
 import { CompletedAvatars } from '@/components/changelog/CompletedAvatars';
 import { createClient } from '@/lib/supabase/client';
+import { INTEGRATION_VARIABLE_SECTION } from '@/lib/integration-keys';
+import { generateDownloadMarkdown } from '@/lib/generate-download-md';
 import type { Version, DiffItem } from '@/lib/types';
 
 function cleanVersionTitle(version: Version): string {
@@ -91,25 +94,33 @@ export default function VersionDetailPage() {
   useEffect(() => {
     if (!currentUserId || !version) return;
 
-    supabase
-      .from('integration_progress')
-      .select('diff_item_id')
-      .eq('user_id', currentUserId)
-      .eq('version_id', version.id)
-      .eq('completed', true)
-      .then(({ data }) => {
-        if (data) setCompletedItemIds(new Set(data.map((d) => d.diff_item_id)));
-      });
-
-    supabase
-      .from('integration_completions')
-      .select('status')
-      .eq('user_id', currentUserId)
-      .eq('version_id', version.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.status === 'completed') setIntegrationCompleted(true);
-      });
+    Promise.all([
+      supabase
+        .from('integration_progress')
+        .select('diff_item_id')
+        .eq('user_id', currentUserId)
+        .eq('version_id', version.id)
+        .eq('completed', true),
+      supabase
+        .from('integration_section_progress')
+        .select('completed')
+        .eq('user_id', currentUserId)
+        .eq('version_id', version.id)
+        .eq('section', 'variable_screenshots')
+        .maybeSingle(),
+      supabase
+        .from('integration_completions')
+        .select('status')
+        .eq('user_id', currentUserId)
+        .eq('version_id', version.id)
+        .maybeSingle(),
+    ]).then(([progressRes, sectionRes, completionRes]) => {
+      const next = new Set<string>();
+      progressRes.data?.forEach((row) => next.add(row.diff_item_id));
+      if (sectionRes.data?.completed) next.add(INTEGRATION_VARIABLE_SECTION);
+      setCompletedItemIds(next);
+      setIntegrationCompleted(completionRes.data?.status === 'completed');
+    });
   }, [currentUserId, version, supabase]);
 
   const handleToggleIntegration = useCallback(
@@ -122,6 +133,20 @@ export default function VersionDetailPage() {
         else next.delete(itemId);
         return next;
       });
+
+      if (itemId === INTEGRATION_VARIABLE_SECTION) {
+        await supabase.from('integration_section_progress').upsert(
+          {
+            user_id: currentUserId,
+            version_id: version.id,
+            section: 'variable_screenshots',
+            completed,
+            completed_at: completed ? new Date().toISOString() : null,
+          },
+          { onConflict: 'user_id,version_id,section' },
+        );
+        return;
+      }
 
       await supabase.from('integration_progress').upsert(
         {
@@ -149,6 +174,7 @@ export default function VersionDetailPage() {
       { onConflict: 'user_id,version_id' },
     );
     setIntegrationCompleted(true);
+    router.push('/changelog');
   };
 
   const handleReopen = async () => {
@@ -160,10 +186,6 @@ export default function VersionDetailPage() {
       .eq('version_id', version.id);
     setIntegrationCompleted(false);
   };
-
-  const hasBreaking = diffItems.some((item) => item.is_breaking && !item.excluded);
-  const visibleItems = diffItems.filter((d) => !d.excluded);
-  const trackableItems = visibleItems.filter((d) => d.id);
 
   if (loading) {
     return (
@@ -182,6 +204,25 @@ export default function VersionDetailPage() {
       </div>
     );
   }
+
+  const handleDownloadMd = () => {
+    if (!version) return;
+    const md = generateDownloadMarkdown(version, diffItems);
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `DS-${version.version_number.replace(/\./g, '-')}-patchnote.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const hasBreaking = diffItems.some((item) => item.is_breaking && !item.excluded);
+  const visibleItems = diffItems.filter((d) => !d.excluded);
+  const hasVariableScreenshots =
+    Array.isArray(version.variable_screenshots) && version.variable_screenshots.length > 0;
+  const integrationTotalCount =
+    countIntegratableDiffItems(diffItems) + (hasVariableScreenshots ? 1 : 0);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -222,6 +263,17 @@ export default function VersionDetailPage() {
               </div>
             )}
 
+            {version.status === 'published' && (
+              <button
+                type="button"
+                onClick={handleDownloadMd}
+                className="mb-8 w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-blue-500/25 bg-blue-500/[0.08] text-blue-300 text-sm font-medium hover:bg-blue-500/[0.14] hover:border-blue-500/40 transition-all cursor-pointer"
+              >
+                <Download className="h-4 w-4" strokeWidth={1.5} />
+                Télécharger le .md du patchnote
+              </button>
+            )}
+
             {hasBreaking && (
               <div className="flex gap-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-4 mb-8">
                 <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" strokeWidth={1.5} />
@@ -245,9 +297,10 @@ export default function VersionDetailPage() {
               items={diffItems}
               readOnly
               variableScreenshots={version.variable_screenshots}
+              variableBlocks={version.variable_blocks}
               customBlocks={version.custom_blocks}
-              completedItemIds={currentUserId ? completedItemIds : undefined}
-              onToggleIntegration={currentUserId ? handleToggleIntegration : undefined}
+              completedItemIds={currentUserId && !isAdmin ? completedItemIds : undefined}
+              onToggleIntegration={currentUserId && !isAdmin ? handleToggleIntegration : undefined}
             />
 
             {isAdmin && (
@@ -271,9 +324,9 @@ export default function VersionDetailPage() {
         </div>
       </main>
 
-      {currentUserId && (
+      {currentUserId && !isAdmin && (
         <IntegrationBar
-          totalItems={trackableItems.length}
+          totalItems={integrationTotalCount}
           completedItems={completedItemIds.size}
           onComplete={handleComplete}
           isCompleted={integrationCompleted}

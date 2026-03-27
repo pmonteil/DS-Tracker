@@ -19,6 +19,7 @@ export interface Version {
   published_at: string | null;
   created_by: string | null;
   variable_screenshots: string[];
+  variable_blocks: CustomBlock[];
   custom_blocks: CustomBlock[];
 }
 
@@ -59,6 +60,7 @@ export interface ComponentSetSnapshot {
   properties: { name: string; options: string[] }[];
   isInternal: boolean;
   pageName: string;
+  childrenHash: string;
 }
 
 export interface StandaloneComponentSnapshot {
@@ -68,6 +70,7 @@ export interface StandaloneComponentSnapshot {
   pageName: string;
   width: number;
   height: number;
+  childrenHash: string;
 }
 
 export interface VariableSnapshot {

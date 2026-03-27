@@ -67,6 +67,39 @@ interface FigmaNode {
   children?: FigmaNode[];
   absoluteBoundingBox?: { width: number; height: number };
   componentPropertyDefinitions?: Record<string, { type: string; defaultValue: string; variantOptions?: string[] }>;
+  [key: string]: unknown;
+}
+
+const HASH_EXCLUDE_KEYS = new Set([
+  'id', 'absoluteBoundingBox', 'absoluteRenderBounds',
+  'relativeTransform', 'transitionNodeID', 'transitionDuration',
+  'transitionEasing', 'exportSettings', 'pluginData',
+  'sharedPluginData', 'componentPropertyReferences',
+]);
+
+function sanitizeForHash(value: unknown): unknown {
+  if (value === null || value === undefined) return value;
+  if (typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map(sanitizeForHash);
+  const obj = value as Record<string, unknown>;
+  const cleaned: Record<string, unknown> = {};
+  const keys = Object.keys(obj).sort();
+  for (const key of keys) {
+    if (HASH_EXCLUDE_KEYS.has(key)) continue;
+    cleaned[key] = sanitizeForHash(obj[key]);
+  }
+  return cleaned;
+}
+
+function computeChildrenHash(children: unknown): string {
+  const sanitized = sanitizeForHash(children);
+  const str = JSON.stringify(sanitized);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36);
 }
 
 interface FigmaFileResponse {
@@ -101,6 +134,7 @@ function extractComponentSets(
       properties,
       isInternal: node.name.startsWith('.'),
       pageName,
+      childrenHash: computeChildrenHash(node.children),
     });
     return;
   }
@@ -126,6 +160,7 @@ function extractStandaloneComponents(
       pageName,
       width: node.absoluteBoundingBox?.width ?? 0,
       height: node.absoluteBoundingBox?.height ?? 0,
+      childrenHash: computeChildrenHash(node.children),
     });
   }
 
@@ -138,7 +173,7 @@ function extractStandaloneComponents(
 
 export async function takeSnapshot(fileKey: string): Promise<FigmaSnapshot> {
   const [fileData, variablesData] = await Promise.all([
-    figmaGet<FigmaFileResponse>(`/files/${fileKey}?depth=3`),
+    figmaGet<FigmaFileResponse>(`/files/${fileKey}?depth=5`),
     figmaGet<{
       meta?: {
         variables?: Record<string, {

@@ -369,15 +369,10 @@ function variableValuesChanged(
   mainModes: Record<string, unknown>,
   branchModes: Record<string, unknown>
 ): boolean {
-  const mainVals = Object.values(mainModes);
-  const branchVals = Object.values(branchModes);
-
-  if (mainVals.length !== branchVals.length) return true;
-
-  for (let i = 0; i < mainVals.length; i++) {
-    if (JSON.stringify(mainVals[i]) !== JSON.stringify(branchVals[i])) return true;
+  const allKeys = new Set([...Object.keys(mainModes), ...Object.keys(branchModes)]);
+  for (const key of allKeys) {
+    if (JSON.stringify(mainModes[key]) !== JSON.stringify(branchModes[key])) return true;
   }
-
   return false;
 }
 
@@ -409,6 +404,7 @@ function diffVariables(
           collection: bv.collectionName,
           resolvedType: bv.resolvedType,
           valuesByMode: bv.valuesByMode,
+          modeNames: bv.modeNames,
         },
         is_breaking: false,
         is_internal: false,
@@ -431,12 +427,16 @@ function diffVariables(
         old_value: {
           name: mv.name,
           collection: mv.collectionName,
+          resolvedType: mv.resolvedType,
           valuesByMode: mv.valuesByMode,
+          modeNames: mv.modeNames,
         },
         new_value: {
           name: bv.name,
           collection: bv.collectionName,
+          resolvedType: bv.resolvedType,
           valuesByMode: bv.valuesByMode,
+          modeNames: bv.modeNames,
         },
         is_breaking: false,
         is_internal: false,
@@ -461,6 +461,7 @@ function diffVariables(
           collection: mv.collectionName,
           resolvedType: mv.resolvedType,
           valuesByMode: mv.valuesByMode,
+          modeNames: mv.modeNames,
         },
         new_value: null,
         is_breaking: true,

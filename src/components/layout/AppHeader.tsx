@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LogOut, Plus, Users } from 'lucide-react';
+import { LogOut, Plus, Users, Palette } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 type NavRole = 'admin' | 'developer' | 'guest' | 'loading';
@@ -135,11 +135,20 @@ export function AppHeader() {
                 <span>Changelog</span>
                 {!isAdmin && unreadCount > 0 && (
                   <span
-                    className="shrink-0 w-2 h-2 rounded-full bg-orange-400 animate-pulse"
-                    style={{ boxShadow: '0 0 8px rgba(251,146,60,0.6)' }}
+                    className="shrink-0 w-2 h-2 rounded-full bg-emerald-400 animate-pulse"
+                    style={{ boxShadow: '0 0 8px rgba(52,211,153,0.6)' }}
                     aria-hidden
                   />
                 )}
+              </span>
+            </Link>
+            <Link
+              href="/variables"
+              className={tabClass(pathname.startsWith('/variables'))}
+            >
+              <span className="flex items-center gap-1.5">
+                <Palette className="h-3.5 w-3.5" strokeWidth={1.5} />
+                Variables
               </span>
             </Link>
             {isAdmin && (

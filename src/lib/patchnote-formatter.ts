@@ -190,17 +190,34 @@ function formatTextStyleAdded(item: DiffItem): string {
   return `- **${item.item_name}** (nouveau) — ${info}\n`;
 }
 
+function formatVariableModeValues(data: Record<string, unknown> | null): string {
+  if (!data) return '—';
+  const vbm = data.valuesByMode as Record<string, unknown> | undefined;
+  if (!vbm) return displayValue(data);
+  const modeNames = (data.modeNames as Record<string, string>) || {};
+  const entries = Object.entries(vbm);
+  if (entries.length === 0) return '—';
+  if (entries.length === 1) return displayValue(entries[0][1]);
+  return entries.map(([modeId, val]) => {
+    const name = modeNames[modeId] || modeId;
+    return `${name}: ${displayValue(val)}`;
+  }).join(' / ');
+}
+
 function formatVariable(item: DiffItem): string {
   if (item.description?.trim()) {
     return `- \`${item.item_name}\` : ${item.description.trim()}\n`;
   }
+  const resolvedType = (item.new_value?.resolvedType || item.old_value?.resolvedType) as string | undefined;
+  const typeLabel = resolvedType ? ` [${resolvedType}]` : '';
+
   if (item.change_type === 'added') {
-    return `- \`${item.item_name}\` (nouveau) — ${displayValue(item.new_value)}\n`;
+    return `- \`${item.item_name}\`${typeLabel} (nouveau) — ${formatVariableModeValues(item.new_value)}\n`;
   }
   if (item.change_type === 'modified') {
-    return `- \`${item.item_name}\` : ${displayValue(item.old_value)} → ${displayValue(item.new_value)}\n`;
+    return `- \`${item.item_name}\`${typeLabel} : ${formatVariableModeValues(item.old_value)} → ${formatVariableModeValues(item.new_value)}\n`;
   }
-  return `- \`${item.item_name}\` (supprimée)\n`;
+  return `- \`${item.item_name}\`${typeLabel} (supprimée)\n`;
 }
 
 export function formatPatchnoteFromDiff(diffItems: DiffItem[]): string {

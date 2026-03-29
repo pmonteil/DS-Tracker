@@ -60,13 +60,23 @@ export async function POST(request: NextRequest) {
       takeSnapshot(mainFileKey),
     ]);
 
+    console.log(`[generate-diff] Branch snapshot: ${branchSnapshot.variables.length} vars, ${branchSnapshot.componentSets.length} component sets, ${branchSnapshot.standaloneComponents.length} standalone`);
+    console.log(`[generate-diff] Main snapshot: ${mainSnapshot.variables.length} vars, ${mainSnapshot.componentSets.length} component sets, ${mainSnapshot.standaloneComponents.length} standalone`);
+
     const diffItems = generateDiff(branchSnapshot, mainSnapshot);
+
+    const varDiffs = diffItems.filter((d) => d.category === 'variable');
+    console.log(`[generate-diff] Diff results: ${diffItems.length} total, ${varDiffs.length} variables (${varDiffs.filter(d => d.change_type === 'added').length} added, ${varDiffs.filter(d => d.change_type === 'modified').length} modified, ${varDiffs.filter(d => d.change_type === 'removed').length} removed)`);
 
     if (diffItems.length === 0) {
       return NextResponse.json({
         message: 'Aucun changement détecté',
         diffItems: [],
         patchnote: '',
+        _debug: {
+          branchVars: branchSnapshot.variables.length,
+          mainVars: mainSnapshot.variables.length,
+        },
       });
     }
 

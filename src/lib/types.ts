@@ -80,6 +80,7 @@ export interface VariableSnapshot {
   collectionName: string;
   resolvedType: string;
   valuesByMode: Record<string, unknown>;
+  modeNames?: Record<string, string>;
 }
 
 export interface TextStyleSnapshot {

@@ -171,32 +171,68 @@ function extractStandaloneComponents(
   }
 }
 
+interface VariablesApiResponse {
+  status?: number;
+  error?: boolean;
+  err?: string;
+  meta?: {
+    variables?: Record<string, {
+      id: string;
+      name: string;
+      resolvedType: string;
+      valuesByMode: Record<string, unknown>;
+      variableCollectionId: string;
+    }>;
+    variableCollections?: Record<string, {
+      id: string;
+      name: string;
+      modes: Array<{ modeId: string; name: string }>;
+    }>;
+  };
+}
+
+async function fetchVariables(fileKey: string): Promise<VariablesApiResponse> {
+  const url = `${FIGMA_BASE}/files/${fileKey}/variables/local`;
+  console.log(`[figma] Fetching variables from: ${url}`);
+
+  const res = await fetch(url, {
+    headers: figmaHeaders(),
+    cache: 'no-store',
+  });
+
+  console.log(`[figma] Variables API response for ${fileKey}: HTTP ${res.status} ${res.statusText}`);
+
+  if (!res.ok) {
+    const body = await res.text();
+    console.error(`[figma] Variables API error body for ${fileKey}:`, body.slice(0, 500));
+
+    if (res.status === 403) {
+      console.error(
+        `[figma] ⚠️  403 Forbidden — Le token Figma n'a probablement pas le scope "file_variables:read". ` +
+        `Régénérez le token sur https://www.figma.com/developers/api#access-tokens avec ce scope activé.`
+      );
+    }
+    return { meta: { variables: {}, variableCollections: {} } };
+  }
+
+  const data = await res.json() as VariablesApiResponse;
+
+  if (data.err || (data.status && data.status >= 400)) {
+    console.error(`[figma] Variables API returned error in body for ${fileKey}:`, data.err || `status=${data.status}`);
+    return { meta: { variables: {}, variableCollections: {} } };
+  }
+
+  const varCount = Object.keys(data.meta?.variables ?? {}).length;
+  const colCount = Object.keys(data.meta?.variableCollections ?? {}).length;
+  console.log(`[figma] ✅ Variables API success for ${fileKey}: ${varCount} variables, ${colCount} collections`);
+
+  return data;
+}
+
 export async function takeSnapshot(fileKey: string): Promise<FigmaSnapshot> {
   const [fileData, variablesData] = await Promise.all([
     figmaGet<FigmaFileResponse>(`/files/${fileKey}?depth=5`),
-    figmaGet<{
-      meta?: {
-        variables?: Record<string, {
-          id: string;
-          name: string;
-          resolvedType: string;
-          valuesByMode: Record<string, unknown>;
-          variableCollectionId: string;
-        }>;
-        variableCollections?: Record<string, {
-          id: string;
-          name: string;
-        }>;
-      };
-    }>(`/files/${fileKey}/variables/local`).catch((err) => {
-      console.error(`[Figma] Failed to fetch variables for ${fileKey}:`, err);
-      return {
-        meta: {
-          variables: {} as Record<string, { id: string; name: string; resolvedType: string; valuesByMode: Record<string, unknown>; variableCollectionId: string }>,
-          variableCollections: {} as Record<string, { id: string; name: string }>,
-        },
-      };
-    }),
+    fetchVariables(fileKey),
   ]);
 
   const pages: PageSnapshot[] = [];
@@ -253,6 +289,9 @@ export async function takeSnapshot(fileKey: string): Promise<FigmaSnapshot> {
       if (typeof r === 'string' && r.startsWith('ref:')) unresolvedAliasCount++;
       else if (val && typeof val === 'object' && (val as Record<string, unknown>).type === 'VARIABLE_ALIAS') resolvedAliasCount++;
     }
+    const collModes = col?.modes ?? [];
+    const modeNames: Record<string, string> = {};
+    for (const m of collModes) modeNames[m.modeId] = m.name;
     variables.push({
       id: v.id,
       name: v.name,
@@ -260,6 +299,7 @@ export async function takeSnapshot(fileKey: string): Promise<FigmaSnapshot> {
       collectionName: col?.name ?? 'Unknown',
       resolvedType: v.resolvedType,
       valuesByMode: resolved,
+      modeNames,
     });
   }
 

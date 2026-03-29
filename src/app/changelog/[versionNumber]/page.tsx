@@ -8,6 +8,7 @@ import { ExternalLink, AlertTriangle, Pencil, Download } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Loader } from '@/components/ui/Loader';
 import { DiffItemList } from '@/components/versions/DiffItemList';
+import { VariableChangesSection } from '@/components/versions/VariableChangesSection';
 import { countIntegratableDiffItems } from '@/lib/integration-trackable';
 import { VersionSidebar } from '@/components/changelog/VersionSidebar';
 import { IntegrationBar } from '@/components/changelog/IntegrationBar';
@@ -219,6 +220,9 @@ export default function VersionDetailPage() {
 
   const hasBreaking = diffItems.some((item) => item.is_breaking && !item.excluded);
   const visibleItems = diffItems.filter((d) => !d.excluded);
+  const variableItems = diffItems.filter((d) => d.category === 'variable');
+  const nonVariableItems = diffItems.filter((d) => d.category !== 'variable');
+  const visibleNonVarItems = visibleItems.filter((d) => d.category !== 'variable');
   const hasVariableScreenshots =
     Array.isArray(version.variable_screenshots) && version.variable_screenshots.length > 0;
   const integrationTotalCount =
@@ -287,14 +291,24 @@ export default function VersionDetailPage() {
               </div>
             )}
 
-            <div className="mb-4">
-              <span className="text-sm font-medium text-slate-500">
-                {visibleItems.length} changement{visibleItems.length !== 1 ? 's' : ''}
-              </span>
-            </div>
+            {variableItems.length > 0 && (
+              <VariableChangesSection
+                items={variableItems}
+                completedItemIds={currentUserId && !isAdmin ? completedItemIds : undefined}
+                onToggleIntegration={currentUserId && !isAdmin ? handleToggleIntegration : undefined}
+              />
+            )}
+
+            {visibleNonVarItems.length > 0 && (
+              <div className="mb-4">
+                <span className="text-sm font-medium text-slate-500">
+                  {visibleNonVarItems.length} autre{visibleNonVarItems.length !== 1 ? 's' : ''} changement{visibleNonVarItems.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+            )}
 
             <DiffItemList
-              items={diffItems}
+              items={nonVariableItems}
               readOnly
               variableScreenshots={version.variable_screenshots}
               variableBlocks={version.variable_blocks}

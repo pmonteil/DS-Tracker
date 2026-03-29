@@ -179,10 +179,10 @@ export default function ChangelogPage() {
                         {!isDraft && isNotIntegrated && (
                           <>
                             <span
-                              className="absolute inset-0 rounded-full bg-orange-400 animate-pulse opacity-50"
-                              style={{ boxShadow: '0 0 6px rgba(251,146,60,0.5)' }}
+                              className="absolute inset-0 rounded-full bg-emerald-400 animate-pulse opacity-50"
+                              style={{ boxShadow: '0 0 6px rgba(52,211,153,0.5)' }}
                             />
-                            <span className="relative block w-2.5 h-2.5 rounded-full bg-orange-400" />
+                            <span className="relative block w-2.5 h-2.5 rounded-full bg-emerald-400" />
                           </>
                         )}
                         {!isDraft && !isIntegrated && !isNotIntegrated && isLatest && (

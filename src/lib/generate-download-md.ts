@@ -40,10 +40,18 @@ function formatModeValues(data: Record<string, unknown> | null, label: string): 
   if (!data) return '';
   const vbm = data.valuesByMode as Record<string, unknown> | undefined;
   if (!vbm) return '';
+  const modeNames = (data.modeNames as Record<string, string>) || {};
   const entries = Object.entries(vbm);
   if (entries.length === 0) return '';
-  if (entries.length === 1) return `${label}: \`${formatValue(entries[0][1])}\``;
-  return `${label}:\n` + entries.map(([, val]) => `  - \`${formatValue(val)}\``).join('\n');
+  if (entries.length === 1) {
+    const modeName = modeNames[entries[0][0]];
+    const modeLabel = modeName ? ` (${modeName})` : '';
+    return `${label}${modeLabel}: \`${formatValue(entries[0][1])}\``;
+  }
+  return `${label}:\n` + entries.map(([modeId, val]) => {
+    const name = modeNames[modeId] || modeId;
+    return `  - **${name}** : \`${formatValue(val)}\``;
+  }).join('\n');
 }
 
 function formatComponentDetails(item: DiffItem): string {
@@ -163,22 +171,40 @@ function formatVariableDetails(item: DiffItem): string {
   const collection = (nv?.collection || ov?.collection) as string | undefined;
   if (collection) lines.push(`- Collection : \`${collection}\``);
 
+  const resolvedType = (nv?.resolvedType || ov?.resolvedType) as string | undefined;
+  if (resolvedType) lines.push(`- Type : ${resolvedType}`);
+
   if (item.change_type === 'added') {
-    const resolvedType = (nv as Record<string, unknown>)?.resolvedType as string | undefined;
-    if (resolvedType) lines.push(`- Type : ${resolvedType}`);
     const valStr = formatModeValues(nv, 'Valeur');
     if (valStr) lines.push(`- ${valStr}`);
   }
 
   if (item.change_type === 'modified') {
-    const oldStr = formatModeValues(ov, 'Ancienne valeur');
-    const newStr = formatModeValues(nv, 'Nouvelle valeur');
-    if (oldStr) lines.push(`- ${oldStr}`);
-    if (newStr) lines.push(`- ${newStr}`);
+    const modeNames = (nv?.modeNames || ov?.modeNames) as Record<string, string> | undefined;
+    const oldModes = (ov?.valuesByMode as Record<string, unknown>) || {};
+    const newModes = (nv?.valuesByMode as Record<string, unknown>) || {};
+    const allKeys = new Set([...Object.keys(oldModes), ...Object.keys(newModes)]);
+
+    if (allKeys.size <= 1) {
+      const oldStr = formatModeValues(ov, 'Ancienne valeur');
+      const newStr = formatModeValues(nv, 'Nouvelle valeur');
+      if (oldStr) lines.push(`- ${oldStr}`);
+      if (newStr) lines.push(`- ${newStr}`);
+    } else {
+      lines.push('- Changements par mode :');
+      for (const modeKey of allKeys) {
+        const oldVal = oldModes[modeKey];
+        const newVal = newModes[modeKey];
+        const modeName = modeNames?.[modeKey] || modeKey;
+        if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+          lines.push(`  - **${modeName}** : \`${formatValue(oldVal)}\` → \`${formatValue(newVal)}\``);
+        }
+      }
+    }
   }
 
   if (item.change_type === 'removed') {
-    lines.push('- **SUPPRIMÉE** — Cette variable n\'existe plus dans le design system.');
+    lines.push('- **SUPPRIMEE** — Cette variable n\'existe plus dans le design system.');
     const valStr = formatModeValues(ov, 'Dernière valeur connue');
     if (valStr) lines.push(`- ${valStr}`);
     lines.push('- **Action requise** : Retirer toute référence à cette variable.');
